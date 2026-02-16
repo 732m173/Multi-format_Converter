@@ -9,10 +9,10 @@ This tool is designed to handle complex media and data transformations. By combi
 
 ## Requirements & Dependencies
 
-To run this converter, you need the following:
+To run this converter, you need the following :
 
 ### 1. Python Libraries
-Install the necessary modules via pip:
+Install the necessary modules via pip :
 pip install -r requirements.txt
 
 ### 2. FFmpeg.exe
