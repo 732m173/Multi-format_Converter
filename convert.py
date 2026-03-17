@@ -7,6 +7,7 @@ import os
 import sys
 import cv2
 import ezdxf
+import numpy as np
 from ezdxf.addons.drawing import RenderContext, Frontend
 from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
 from matplotlib.figure import Figure
@@ -53,7 +54,8 @@ def processImage(inputPath, outputExt):
     outputPath = os.path.splitext(inputPath)[0] + "_converti." + outputExt
     
     if outputExt.lower() == 'dxf':
-        img_cv = cv2.imread(inputPath, cv2.IMREAD_GRAYSCALE)
+        img_array = np.fromfile(inputPath, np.uint8)
+        img_cv = cv2.imdecode(img_array, cv2.IMREAD_GRAYSCALE)
         if img_cv is None:
             raise ValueError("Impossible de lire l'image pour la vectorisation.")
             
