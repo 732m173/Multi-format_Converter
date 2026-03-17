@@ -5,12 +5,18 @@ import subprocess
 import threading
 import os
 import sys
+import cv2
+import ezdxf
+from ezdxf.addons.drawing import RenderContext, Frontend
+from ezdxf.addons.drawing.matplotlib import MatplotlibBackend
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from docx2pdf import convert as convert_doc
 
 FORMATS = {
     'image': {
         'inputs': ['.jpg', '.jpeg', '.png', '.bmp', '.webp', '.tiff', '.ico'],
-        'outputs': ['jpg', 'png', 'webp', 'pdf', 'ico', 'bmp']
+        'outputs': ['jpg', 'png', 'webp', 'pdf', 'ico', 'bmp', 'dxf']
     },
     'video': {
         'inputs': ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.webm'],
@@ -44,15 +50,46 @@ def detectCategory(extension):
 
 def processImage(inputPath, outputExt):
     print(f"DEBUG: Processing Image -> {outputExt}")
+    outputPath = os.path.splitext(inputPath)[0] + "_converti." + outputExt
+    
+    if outputExt.lower() == 'dxf':
+        img_cv = cv2.imread(inputPath, cv2.IMREAD_GRAYSCALE)
+        if img_cv is None:
+            raise ValueError("Impossible de lire l'image pour la vectorisation.")
+            
+        edges = cv2.Canny(img_cv, 100, 200)
+        contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        
+        doc = ezdxf.new('R2010')
+        msp = doc.modelspace()
+        
+        h = img_cv.shape[0]
+        
+        for contour in contours:
+            points = [(pt[0][0], h - pt[0][1]) for pt in contour]
+            if len(points) >= 2:
+                msp.add_lwpolyline(points, close=True)
+                
+        doc.saveas(outputPath)
+        return outputPath
+
     img = Image.open(inputPath)
     
-    # Enlève la transparence pour le jpg/pdf
-    if outputExt in ['jpg', 'jpeg', 'pdf']:
-        if img.mode in ("RGBA", "P"):
-            img = img.convert("RGB")
+    # Enlève la transparence pour les formats qui ne la supportent pas
+    if outputExt.lower() in ['jpg', 'jpeg', 'pdf', 'bmp']:
+        if img.mode in ("RGBA", "P", "LA"):
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            if len(img.split()) == 4:
+                background.paste(img, mask=img.split()[3])
+            img = background
             
-    outputPath = os.path.splitext(inputPath)[0] + "_converti." + outputExt
-    img.save(outputPath)
+    if outputExt.lower() == 'ico':
+        img.save(outputPath, format='ICO', sizes=[(32, 32)])
+    else:
+        img.save(outputPath)
+        
     return outputPath
 
 def processMedia(inputPath, outputExt):
